@@ -1,0 +1,4 @@
+73.biubiuai.com.cn {
+  encode gzip
+  reverse_proxy app:3000
+}
