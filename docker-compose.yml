@@ -29,5 +29,20 @@ services:
       postgres:
         condition: service_healthy
 
+  seed:
+    image: node:20-alpine
+    profiles: ["seed"]
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://the73:the73_local_password@postgres:5432/the73change?schema=public
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "apk add --no-cache openssl >/dev/null && npm ci --silent && npx prisma db push && npm run db:seed"
+
 volumes:
   the73-postgres:
