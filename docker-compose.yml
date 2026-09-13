@@ -17,6 +17,8 @@ services:
   app:
     build: .
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
     env_file:
       - .env
     environment:
@@ -27,20 +29,5 @@ services:
       postgres:
         condition: service_healthy
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - the73-caddy-data:/data
-      - the73-caddy-config:/config
-    depends_on:
-      - app
-
 volumes:
   the73-postgres:
-  the73-caddy-data:
-  the73-caddy-config:
