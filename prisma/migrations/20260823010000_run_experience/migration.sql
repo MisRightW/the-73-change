@@ -1,0 +1,5 @@
+CREATE TYPE "RunErrorType" AS ENUM ('TIMEOUT', 'API_KEY_ERROR', 'INVALID_INPUT', 'CONTENT_FILTER', 'UNKNOWN');
+
+ALTER TABLE "TechniqueRun"
+  ADD COLUMN "errorType" "RunErrorType",
+  ADD COLUMN "errorMessage" TEXT;

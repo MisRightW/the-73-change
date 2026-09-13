@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Category {
+  WORKPLACE
+  CONTENT
+  DEVELOPMENT
+  LEARNING
+  ECOMMERCE
+  DATA_ANALYSIS
+  LIFE
+}
+
+enum VoteValue {
+  VALID
+  PARTIAL
+  INVALID
+}
+
+enum RunStatus {
+  SUCCESS
+  ERROR
+  TIMEOUT
+}
+
+enum RunErrorType {
+  TIMEOUT
+  API_KEY_ERROR
+  INVALID_INPUT
+  CONTENT_FILTER
+  UNKNOWN
+}
+
+enum ModelProvider {
+  OPENAI
+  ANTHROPIC
+  GOOGLE
+}
+
+enum NotificationType {
+  COMMENT
+  COLLECT
+  VOTE
+}
+
+model User {
+  id String @id @default(cuid())
+  name String?
+  email String? @unique
+  image String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  accounts Account[]
+  sessions Session[]
+  techniques Technique[]
+  runs TechniqueRun[]
+  votes Vote[]
+  collections Collection[]
+  comments Comment[]
+  notifications Notification[]
+  @@index([createdAt])
+}
+
+model Technique {
+  id String @id @default(cuid())
+  title String
+  description String
+  category Category
+  authorId String
+  published Boolean @default(false)
+  currentVersionId String? @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  versions TechniqueVersion[] @relation("TechniqueVersions")
+  currentVersion TechniqueVersion? @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  runs TechniqueRun[]
+  collections Collection[]
+  comments Comment[]
+  tags Tag[]
+  @@index([category, published, createdAt])
+  @@index([authorId, createdAt])
+  @@index([published, updatedAt])
+}
+
+model TechniqueVersion {
+  id String @id @default(cuid())
+  techniqueId String
+  versionNumber Int
+  promptContent String
+  modelId String
+  temperature Float @default(0.7)
+  maxTokens Int @default(1024)
+  inputExample String?
+  outputExample String?
+  changelog String?
+  createdAt DateTime @default(now())
+  technique Technique @relation("TechniqueVersions", fields: [techniqueId], references: [id], onDelete: Cascade)
+  currentFor Technique? @relation("CurrentVersion")
+  model Model @relation(fields: [modelId], references: [id])
+  runs TechniqueRun[]
+  @@unique([techniqueId, versionNumber])
+  @@index([techniqueId, createdAt])
+  @@index([modelId])
+}
+
+model TechniqueRun {
+  id String @id @default(cuid())
+  techniqueId String
+  versionId String
+  userId String
+  input String
+  output String?
+  model String
+  status RunStatus
+  errorType RunErrorType?
+  errorMessage String?
+  durationMs Int?
+  createdAt DateTime @default(now())
+  technique Technique @relation(fields: [techniqueId], references: [id], onDelete: Cascade)
+  version TechniqueVersion @relation(fields: [versionId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vote Vote?
+  @@index([techniqueId, createdAt])
+  @@index([userId, createdAt])
+  @@index([versionId])
+}
+
+model Vote {
+  id String @id @default(cuid())
+  runId String @unique
+  userId String
+  value VoteValue
+  createdAt DateTime @default(now())
+  run TechniqueRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+  @@index([runId, userId])
+}
+
+model Collection {
+  id String @id @default(cuid())
+  userId String
+  techniqueId String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  technique Technique @relation(fields: [techniqueId], references: [id], onDelete: Cascade)
+  @@unique([userId, techniqueId])
+  @@index([userId, createdAt])
+  @@index([techniqueId])
+}
+
+model Comment {
+  id String @id @default(cuid())
+  techniqueId String
+  userId String
+  parentId String?
+  content String @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  technique Technique @relation(fields: [techniqueId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+  @@index([techniqueId, createdAt])
+  @@index([userId, createdAt])
+  @@index([parentId, createdAt])
+}
+
+model Notification {
+  id String @id @default(cuid())
+  userId String
+  type NotificationType
+  sourceId String
+  sourceType String
+  content String
+  isRead Boolean @default(false)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Tag {
+  id String @id @default(cuid())
+  name String @unique
+  techniques Technique[]
+  @@index([name])
+}
+
+model Model {
+  id String @id @default(cuid())
+  name String @unique
+  provider ModelProvider
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  versions TechniqueVersion[]
+  @@index([provider, isActive])
+}
+
+model Account {
+  id String @id @default(cuid())
+  userId String
+  type String
+  provider String
+  providerAccountId String
+  refresh_token String? @db.Text
+  access_token String? @db.Text
+  expires_at Int?
+  token_type String?
+  scope String?
+  id_token String? @db.Text
+  session_state String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id String @id @default(cuid())
+  sessionToken String @unique
+  userId String
+  expires DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token String @unique
+  expires DateTime
+  @@unique([identifier, token])
+}
+
+model VerificationCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  @@index([email, code])
+  @@index([email, used, expiresAt, createdAt])
+}
